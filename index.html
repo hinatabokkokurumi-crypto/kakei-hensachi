@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家計偏差値 — あなたの家計は上位何%？</title>
+<meta name="description" content="年代・都道府県・家族構成・年収が同じ世帯と家計を比較して、あなたの家計偏差値を無料診断。CSVインポート対応、データは端末外に送信しません。">
+<meta property="og:title" content="家計偏差値 — あなたの家計は上位何%？">
+<meta property="og:description" content="同じ条件の世帯と比べて、あなたの家計は何点？ 3分で無料診断。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://kakei-hensachi.com/">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1e2b45;
+  --ink-soft: #4a5670;
+  --ink-faint: #8b93a6;
+  --paper: #f7f6f1;
+  --card: #ffffff;
+  --line: #ddd9ce;
+  --line-strong: #b9b3a4;
+  --shu: #c73e3a;
+  --shu-soft: #f6e5e4;
+  --green: #2e7d5b;
+  --green-soft: #e4f0ea;
+  --amber: #9a6c0a;
+  --amber-soft: #f5ecd6;
+  --radius: 10px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.7;
+  min-height: 100vh;
+}
+.num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+
+header {
+  background: var(--ink);
+  color: #f0ede4;
+  padding: 14px 20px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+header h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.06em; }
+header h1 span { font-weight: 400; font-size: 12px; margin-left: 10px; opacity: 0.7; letter-spacing: 0.1em; }
+#profBadge { font-size: 12px; opacity: 0.85; }
+
+nav {
+  display: flex;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 10;
+}
+nav button {
+  flex: 1;
+  padding: 13px 4px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+nav button.on { color: var(--ink); border-bottom-color: var(--shu); font-weight: 500; }
+
+main { max-width: 720px; margin: 0 auto; padding: 16px 16px 60px; }
+section { display: none; }
+section.on { display: block; }
+
+/* 月ナビゲーション */
+.month-nav {
+  display: flex; align-items: center; justify-content: center; gap: 18px;
+  margin-bottom: 16px;
+}
+.month-nav button {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--line-strong); background: var(--card);
+  font-size: 15px; cursor: pointer; color: var(--ink-soft); font-family: inherit;
+}
+.month-nav button:disabled { opacity: 0.3; cursor: default; }
+.month-nav .m { font-size: 16px; font-weight: 700; letter-spacing: 0.04em; min-width: 130px; text-align: center; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+h2 { font-size: 15px; font-weight: 700; margin-bottom: 14px; letter-spacing: 0.03em; }
+h2 small { font-weight: 400; font-size: 12px; color: var(--ink-faint); margin-left: 8px; }
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.summary div { background: var(--card); padding: 14px 8px; text-align: center; }
+.summary .lbl { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.08em; }
+.summary .val { font-size: 21px; font-weight: 500; margin-top: 2px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.chip {
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--card);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+.inrow { display: flex; gap: 10px; flex-wrap: wrap; }
+input, select {
+  font-family: inherit;
+  font-size: 15px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fdfdfb;
+  color: var(--ink);
+}
+input:focus, select:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+#amount { flex: 1; min-width: 130px; font-family: 'IBM Plex Mono', monospace; font-size: 18px; text-align: right; }
+#memo { flex: 2; min-width: 160px; }
+.btn {
+  padding: 10px 22px;
+  border: none;
+  border-radius: 8px;
+  background: var(--shu);
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn:active { transform: scale(0.98); }
+.btn-ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line-strong); }
+
+.ledger { border-top: 2px solid var(--ink); }
+.ledger-row {
+  display: grid;
+  grid-template-columns: 56px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+}
+.ledger-row .d { color: var(--ink-faint); font-size: 12px; }
+.ledger-row .c { color: var(--ink-soft); }
+.ledger-row .a { text-align: right; font-weight: 500; }
+.ledger-row .x {
+  border: none; background: none; color: var(--ink-faint);
+  cursor: pointer; font-size: 15px; padding: 2px 6px; font-family: inherit;
+}
+.ledger-row .x:hover { color: var(--shu); }
+.empty { text-align: center; color: var(--ink-faint); padding: 24px 0; font-size: 13px; }
+
+.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.metric {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  background: var(--card);
+}
+.metric .lbl { font-size: 12px; color: var(--ink-faint); }
+.metric .val { font-size: 26px; font-weight: 500; }
+.metric .note { font-size: 11.5px; margin-top: 2px; }
+.good { color: var(--green); }
+.warn { color: var(--amber); }
+.bad { color: var(--shu); }
+
+.stack { display: flex; height: 26px; border-radius: 6px; overflow: hidden; gap: 2px; margin: 10px 0 8px; }
+.stack div { min-width: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--ink-soft); }
+.legend span { display: flex; align-items: center; gap: 5px; }
+.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* 月次推移グラフ */
+.trend {
+  display: flex; align-items: flex-end; gap: 10px;
+  height: 170px; padding-top: 26px; margin-bottom: 4px;
+}
+.trend .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; cursor: pointer; }
+.trend .bar {
+  width: 68%; max-width: 44px;
+  background: #c9c4b6;
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  transition: background .15s;
+}
+.trend .col.cur .bar { background: var(--ink); }
+.trend .bar .v {
+  position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; color: var(--ink-soft); white-space: nowrap;
+}
+.trend .col .ml { font-size: 11px; color: var(--ink-faint); margin-top: 6px; }
+.trend .col.cur .ml { color: var(--ink); font-weight: 700; }
+.trend-sub {
+  display: flex; gap: 10px; border-top: 1px solid var(--line); padding-top: 8px;
+}
+.trend-sub .cell { flex: 1; text-align: center; font-size: 11px; color: var(--ink-soft); }
+.trend-sub .cell b { display: block; font-weight: 500; font-size: 12px; }
+.trend-sub .up { color: var(--green); }
+.trend-sub .down { color: var(--shu); }
+
+.cmp { margin-bottom: 18px; }
+.cmp .head { display: flex; justify-content: space-between; font-size: 13.5px; margin-bottom: 5px; }
+.cmp .head b { font-weight: 500; }
+.bar-wrap { display: grid; grid-template-columns: 46px 1fr 62px; gap: 8px; align-items: center; font-size: 12px; margin-bottom: 3px; }
+.bar-wrap .who { color: var(--ink-faint); }
+.bar-track { height: 14px; background: #edeae1; border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; }
+.bar-wrap .pct { text-align: right; color: var(--ink-soft); }
+
+.hanko-area { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.hanko {
+  width: 96px; height: 96px;
+  border: 3px solid var(--shu);
+  border-radius: 50%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--shu);
+  transform: rotate(-6deg);
+  flex-shrink: 0;
+}
+.hanko .big { font-size: 22px; font-weight: 700; line-height: 1.1; }
+.hanko .sml { font-size: 10.5px; letter-spacing: 0.1em; }
+.hanko-desc { font-size: 13.5px; color: var(--ink-soft); flex: 1; min-width: 200px; }
+
+.tip { border-left: 3px solid var(--line-strong); padding: 8px 14px; margin-bottom: 12px; font-size: 13.5px; }
+.tip.g { border-left-color: var(--green); background: var(--green-soft); }
+.tip.w { border-left-color: var(--amber); background: var(--amber-soft); }
+.tip.r { border-left-color: var(--shu); background: var(--shu-soft); }
+.tip b { display: block; font-size: 13px; margin-bottom: 2px; }
+
+.set-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.set-grid label { display: block; font-size: 12px; color: var(--ink-faint); margin-bottom: 4px; }
+.set-grid input, .set-grid select { width: 100%; }
+.saved-note { font-size: 12px; color: var(--green); margin-top: 10px; min-height: 1.2em; }
+.pref-note { font-size: 12px; color: var(--ink-soft); background: var(--paper); border-radius: 8px; padding: 10px 14px; margin-top: 12px; }
+
+/* CSVインポート */
+#csvFile { width: 100%; padding: 10px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--paper); font-size: 13px; }
+.imp-box { margin-top: 14px; border-top: 2px solid var(--ink); padding-top: 12px; }
+.imp-meta { font-size: 13px; color: var(--ink-soft); margin-bottom: 10px; }
+.imp-meta b { color: var(--ink); }
+.imp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 12px; }
+.imp-table th, .imp-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+.imp-table th { color: var(--ink-faint); font-weight: 500; }
+.imp-table th:first-child, .imp-table td:first-child { text-align: left; }
+.imp-opts { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); margin-bottom: 12px; }
+.imp-err { font-size: 13px; color: var(--shu); margin-top: 10px; }
+
+footer { text-align: center; font-size: 11px; color: var(--ink-faint); padding: 20px; }
+@media (max-width: 520px) {
+  .metric-grid, .set-grid { grid-template-columns: 1fr; }
+  .summary .val { font-size: 17px; }
+  .trend { gap: 5px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>家計偏差値<span>家計の健康診断 β版</span></h1>
+  <div id="profBadge"></div>
+</header>
+
+<nav>
+  <button class="on" data-tab="rec">記録</button>
+  <button data-tab="ana">分析</button>
+  <button data-tab="cmp">比較</button>
+  <button data-tab="set">設定</button>
+</nav>
+
+<main>
+
+<div class="month-nav">
+  <button id="prevM" aria-label="前の月">◀</button>
+  <div class="m num" id="monthLabel"></div>
+  <button id="nextM" aria-label="次の月">▶</button>
+</div>
+
+<!-- 記録 -->
+<section id="rec" class="on">
+  <div class="summary">
+    <div><div class="lbl">手取り</div><div class="val num" id="sTakehome">—</div></div>
+    <div><div class="lbl">この月の支出</div><div class="val num" id="sExpense">—</div></div>
+    <div><div class="lbl">貯蓄率</div><div class="val num" id="sSaving">—</div></div>
+  </div>
+
+  <div class="card">
+    <h2>支出を記録</h2>
+    <div class="chips" id="catChips"></div>
+    <div class="inrow">
+      <input type="number" id="amount" placeholder="金額（円）" min="1" max="999999" step="1">
+      <input type="text" id="memo" placeholder="メモ（例: セブン-イレブン）" maxlength="100">
+      <button class="btn" id="addBtn">記録する</button>
+    </div>
+    <div class="saved-note" id="addNote"></div>
+  </div>
+
+  <div class="card">
+    <h2>CSVから診断<small>マネーフォワード ME / Zaim / 汎用CSV 対応</small></h2>
+    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:12px;">
+      普段お使いの家計簿アプリからエクスポートした CSV を取り込むと、
+      日々の記録なしで<b>比較レポートと判子ランク</b>がすぐに出ます。
+    </p>
+    <input type="file" id="csvFile" accept=".csv,text/csv">
+    <div id="importPreview"></div>
+  </div>
+
+  <div class="card">
+    <h2>明細<small>通帳スタイル・新しい順</small></h2>
+    <div class="ledger" id="ledger"></div>
+  </div>
+</section>
+
+<!-- 分析 -->
+<section id="ana">
+  <div class="card">
+    <h2>月次推移<small>直近6ヶ月・棒をタップで月を切替</small></h2>
+    <div class="trend" id="trend"></div>
+    <div class="trend-sub" id="trendSub"></div>
+  </div>
+
+  <div class="metric-grid">
+    <div class="metric"><div class="lbl">エンゲル係数（食費÷消費支出）</div><div class="val num" id="mEngel">—</div><div class="note" id="mEngelNote"></div></div>
+    <div class="metric"><div class="lbl">貯蓄率</div><div class="val num" id="mSaving">—</div><div class="note" id="mSavingNote"></div></div>
+    <div class="metric"><div class="lbl">家賃負担率（対手取り）</div><div class="val num" id="mHousing">—</div><div class="note" id="mHousingNote"></div></div>
+    <div class="metric"><div class="lbl">投資・貯蓄への配分</div><div class="val num" id="mInvest">—</div><div class="note" id="mInvestNote"></div></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>支出の構成</h2>
+    <div class="stack" id="stackBar"></div>
+    <div class="legend" id="stackLegend"></div>
+  </div>
+
+  <div class="card">
+    <h2>アドバイス<small>ルールベース自動生成</small></h2>
+    <div id="tips"></div>
+  </div>
+</section>
+
+<!-- 比較 -->
+<section id="cmp">
+  <div class="card">
+    <h2>あなたの位置<small id="cmpCond"></small></h2>
+    <div class="hanko-area">
+      <div class="hanko" id="hanko"><div class="big">—</div><div class="sml">判定中</div></div>
+      <div class="hanko-desc" id="hankoDesc"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>カテゴリ別の比較<small>あなた vs 同条件世帯の平均（対手取り比）</small></h2>
+    <div id="cmpBars"></div>
+  </div>
+</section>
+
+<!-- 設定 -->
+<section id="set">
+  <div class="card">
+    <h2>プロフィール</h2>
+    <div class="set-grid">
+      <div><label>年代</label>
+        <select id="pAge">
+          <option value="20s">20代</option><option value="30s" selected>30代</option>
+          <option value="40s">40代</option><option value="50s">50代</option><option value="60s">60代以上</option>
+        </select></div>
+      <div><label>都道府県</label><select id="pPref"></select></div>
+      <div><label>家族構成</label>
+        <select id="pHousehold">
+          <option value="single">単身</option>
+          <option value="couple" selected>夫婦のみ</option>
+          <option value="family1">夫婦＋子1人</option>
+          <option value="family2">夫婦＋子2人以上</option>
+          <option value="single_parent">ひとり親＋子</option>
+        </select></div>
+      <div><label>年収（万円・世帯）</label><input type="number" id="pIncome" value="500" min="100" max="3000"></div>
+      <div><label>手取り月額（万円・世帯）</label><input type="number" id="pTakehome" value="32" min="5" max="300" step="0.5"></div>
+    </div>
+    <div id="prefInfo" class="pref-note"></div>
+    <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn" id="saveProfile">保存</button>
+      <button class="btn btn-ghost" id="loadSample">サンプルデータを再投入</button>
+      <button class="btn btn-ghost" id="clearData">明細を全削除</button>
+    </div>
+    <div class="saved-note" id="setNote"></div>
+  </div>
+  <div class="card" style="font-size:12.5px; color:var(--ink-soft);">
+    <h2>このテスト版の比較ロジックについて</h2>
+    平均値は<b>家族構成別の基準値 × 年代補正 × 都道府県補正（家賃・物価）</b>で算出しています。
+    基準値は総務省「家計調査」（単身世帯・二人以上世帯）、県別補正は「消費者物価地域差指数」と民間家賃相場を参考にした<b>概算のダミーデータ</b>です。
+    本番版では、細分化しすぎて統計サンプルが薄くならないよう「家賃・物価のみ県別、その他は全国値」という設計を採用します。
+  </div>
+</section>
+
+</main>
+<footer>家計偏差値 β版 — 診断は参考情報であり、金融アドバイスではありません</footer>
+
+<script>
+// ===== カテゴリ定義（教育・子育てを追加）=====
+const CATS = [
+  { id:'food',      name:'食費',         color:'#3d6aa8' },
+  { id:'housing',   name:'家賃・住宅',   color:'#1e2b45' },
+  { id:'utilities', name:'光熱・通信',   color:'#7a90b8' },
+  { id:'transport', name:'交通',         color:'#5b8a72' },
+  { id:'education', name:'教育・子育て', color:'#b0653a' },
+  { id:'insurance', name:'保険・医療',   color:'#a08a4f' },
+  { id:'investment',name:'投資・貯蓄',   color:'#2e7d5b' },
+  { id:'other',     name:'その他',       color:'#b9b3a4' },
+];
+const catById = id => CATS.find(c => c.id === id);
+
+// ===== 家族構成別の基準値（対手取り比 %・家計調査を参考にした概算）=====
+const HOUSEHOLD_BASE = {
+  single:        { food:16, housing:28, utilities:5.0, transport:5.0, education:0.5, insurance:3.0, investment:12, other:26 },
+  couple:        { food:18, housing:25, utilities:5.5, transport:7.0, education:1.0, insurance:5.0, investment:13, other:24 },
+  family1:       { food:20, housing:24, utilities:6.0, transport:7.0, education:6.0, insurance:6.0, investment:11, other:21 },
+  family2:       { food:22, housing:22, utilities:6.5, transport:7.5, education:10.0, insurance:6.5, investment:9, other:19 },
+  single_parent: { food:21, housing:26, utilities:6.0, transport:6.0, education:9.0, insurance:4.0, investment:6, other:21 },
+};
+const HOUSEHOLD_LABEL = {
+  single:'単身', couple:'夫婦のみ', family1:'夫婦＋子1人', family2:'夫婦＋子2人以上', single_parent:'ひとり親＋子',
+};
+// 年代による補正（加算 %pt）
+const AGE_ADJ = {
+  '20s': { investment:-2, housing:+2 },
+  '30s': {},
+  '40s': { education:+2, investment:+1 },
+  '50s': { education:+1, investment:+3, housing:-4 },
+  '60s': { investment:+2, housing:-8, food:+2 },
+};
+const AGE_LABEL = { '20s':'20代','30s':'30代','40s':'40代','50s':'50代','60s':'60代以上' };
+
+// ===== 47都道府県: h=家賃水準指数, p=物価地域差指数（全国=100・概算ダミー）=====
+const PREFS = [
+  ['北海道',85,99],['青森県',75,98],['岩手県',78,98],['宮城県',95,99],['秋田県',75,98],
+  ['山形県',78,99],['福島県',80,99],['茨城県',85,98],['栃木県',83,98],['群馬県',80,97],
+  ['埼玉県',105,101],['千葉県',103,100],['東京都',135,105],['神奈川県',118,103],['新潟県',82,98],
+  ['富山県',80,98],['石川県',85,99],['福井県',78,99],['山梨県',80,98],['長野県',80,97],
+  ['岐阜県',80,97],['静岡県',90,98],['愛知県',100,99],['三重県',82,98],['滋賀県',90,99],
+  ['京都府',105,101],['大阪府',108,100],['兵庫県',100,100],['奈良県',88,97],['和歌山県',78,99],
+  ['鳥取県',75,98],['島根県',75,99],['岡山県',85,98],['広島県',92,99],['山口県',78,98],
+  ['徳島県',78,98],['香川県',80,98],['愛媛県',78,98],['高知県',78,99],['福岡県',95,97],
+  ['佐賀県',75,97],['長崎県',78,99],['熊本県',80,99],['大分県',78,98],['宮崎県',74,96],
+  ['鹿児島県',76,97],['沖縄県',85,98],
+];
+
+function getAvg(profile) {
+  const base = { ...HOUSEHOLD_BASE[profile.household] };
+  const adj = AGE_ADJ[profile.age] || {};
+  for (const k in adj) base[k] = Math.max(0.5, base[k] + adj[k]);
+  const pref = PREFS[profile.pref];
+  base.housing = Math.max(5, base.housing * pref[1] / 100);   // 家賃は県別家賃水準で補正
+  base.food = base.food * pref[2] / 100;                       // 食費は物価地域差で補正
+  base.other = base.other * pref[2] / 100;
+  return base;
+}
+
+// ===== 状態 =====
+let profile = { age:'30s', pref:12, household:'couple', income:500, takehome:32 }; // pref=12: 東京都
+let expenses = [];
+let selectedCat = 'food';
+let curMonth = thisMonth();
+
+const yen = n => '¥' + Math.round(n).toLocaleString('ja-JP');
+const man = n => (Math.round(n*10)/10).toLocaleString('ja-JP') + '万';
+const pct = n => (Math.round(n*10)/10).toFixed(1) + '%';
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+function thisMonth() { return new Date().toISOString().slice(0,7); }
+function todayStr() { return new Date().toISOString().slice(0,10); }
+function shiftMonth(ym, n) {
+  const [y,m] = ym.split('-').map(Number);
+  const d = new Date(y, m-1+n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function monthJP(ym) { const [y,m] = ym.split('-'); return `${y}年${Number(m)}月`; }
+function monthShort(ym) { return Number(ym.split('-')[1]) + '月'; }
+
+// ===== サンプルデータ（直近4ヶ月分・月ごとに変動あり）=====
+function sampleData() {
+  const template = [
+    ['01','housing', 80000, '家賃'],
+    ['01','investment', 50000, 'つみたてNISA'],
+    ['02','food', 4200, 'スーパー まとめ買い'],
+    ['03','utilities', 9800, '電気・ガス'],
+    ['04','food', 1200, 'コンビニ'],
+    ['05','transport', 5000, 'ガソリン'],
+    ['05','food', 2500, '外食'],
+    ['06','insurance', 12000, '生命保険'],
+    ['06','utilities', 4500, 'スマホ通信費'],
+    ['07','food', 3800, 'スーパー'],
+    ['08','education', 8000, '習い事'],
+    ['08','other', 6800, '書籍・趣味'],
+    ['10','food', 1500, 'ランチ'],
+    ['12','other', 12000, '衣類'],
+    ['14','food', 4600, 'スーパー'],
+    ['15','transport', 3200, '電車・バス'],
+    ['18','food', 2900, '外食'],
+    ['20','other', 8500, '飲み会'],
+    ['22','food', 4100, 'スーパー'],
+  ];
+  // 月ごとの変動係数（食費・その他などの変動費のみ変動）
+  const monthProfiles = [
+    { offset: 0,  factor: 1.00, extra: null },
+    { offset: -1, factor: 0.93, extra: null },
+    { offset: -2, factor: 1.10, extra: ['25','other', 22000, '旅行'] },
+    { offset: -3, factor: 0.97, extra: null },
+  ];
+  const FIXED = new Set(['housing','investment','insurance']);
+  const out = [];
+  monthProfiles.forEach(mp => {
+    const ym = shiftMonth(thisMonth(), mp.offset);
+    template.forEach(([d,c,a,memo]) => {
+      const amt = FIXED.has(c) ? a : Math.round(a * mp.factor / 10) * 10;
+      out.push({ id: uid()+ym+d+c, date:`${ym}-${d}`, category:c, amount:amt, memo });
+    });
+    if (mp.extra) {
+      const [d,c,a,memo] = mp.extra;
+      out.push({ id: uid()+ym+d+'x', date:`${ym}-${d}`, category:c, amount:a, memo });
+    }
+  });
+  return out;
+}
+
+// ===== 永続化（対応環境のみ）=====
+async function tryLoad() {
+  try {
+    if (window.storage) {
+      const p = await window.storage.get('kakubo2-profile').catch(()=>null);
+      const e = await window.storage.get('kakubo2-expenses').catch(()=>null);
+      if (p) profile = JSON.parse(p.value);
+      if (e) { expenses = JSON.parse(e.value); return expenses.length > 0; }
+    }
+  } catch(_) {}
+  return false;
+}
+async function trySave() {
+  try {
+    if (window.storage) {
+      await window.storage.set('kakubo2-profile', JSON.stringify(profile));
+      await window.storage.set('kakubo2-expenses', JSON.stringify(expenses));
+    }
+  } catch(_) {}
+}
+
+// ===== 集計 =====
+function expensesOf(ym) { return expenses.filter(e => e.date.startsWith(ym)); }
+function metricsOf(ym) {
+  const rows = expensesOf(ym);
+  const takehomeYen = profile.takehome * 10000;
+  const byCat = {};
+  CATS.forEach(c => byCat[c.id] = 0);
+  rows.forEach(e => { if (byCat[e.category] !== undefined) byCat[e.category] += e.amount; });
+  const total = Object.values(byCat).reduce((a,b)=>a+b, 0);
+  const consumption = total - byCat.investment;
+  return {
+    byCat, total, consumption, takehomeYen,
+    engel: consumption > 0 ? byCat.food / consumption * 100 : 0,
+    saving: takehomeYen > 0 ? Math.max(0, takehomeYen - consumption) / takehomeYen * 100 : 0,
+    housingRatio: takehomeYen > 0 ? byCat.housing / takehomeYen * 100 : 0,
+    investRatio: takehomeYen > 0 ? byCat.investment / takehomeYen * 100 : 0,
+  };
+}
+function percentileBelow(value, mean, sdRatio=0.3) {
+  const sd = mean * sdRatio || 1;
+  const z = (value - mean) / sd;
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989423 * Math.exp(-z*z/2);
+  let p = d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+  p = z > 0 ? 1 - p : p;
+  return p * 100;
+}
+
+// ===== 描画 =====
+function renderAll() {
+  document.getElementById('monthLabel').textContent = monthJP(curMonth);
+  document.getElementById('nextM').disabled = curMonth >= thisMonth();
+  document.getElementById('profBadge').textContent =
+    `${AGE_LABEL[profile.age]} · ${PREFS[profile.pref][0]} · ${HOUSEHOLD_LABEL[profile.household]}`;
+  renderSummary(); renderLedger(); renderTrend(); renderAnalysis(); renderComparison();
+}
+function renderSummary() {
+  const m = metricsOf(curMonth);
+  document.getElementById('sTakehome').textContent = man(profile.takehome);
+  document.getElementById('sExpense').textContent = man(m.total/10000);
+  document.getElementById('sSaving').textContent = pct(m.saving);
+}
+function esc(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function renderLedger() {
+  const el = document.getElementById('ledger');
+  const rows = expensesOf(curMonth).slice().sort((a,b)=> b.date.localeCompare(a.date));
+  if (!rows.length) { el.innerHTML = '<div class="empty">この月の記録はありません。上のフォームから追加してください。</div>'; return; }
+  el.innerHTML = rows.map(e => `
+    <div class="ledger-row">
+      <span class="d num">${e.date.slice(8)}日</span>
+      <span><span class="c">${catById(e.category).name}</span>${e.memo ? ' · ' + esc(e.memo) : ''}</span>
+      <span class="a num">${yen(e.amount)}</span>
+      <button class="x" data-del="${e.id}" aria-label="削除">×</button>
+    </div>`).join('');
+}
+
+function renderTrend() {
+  const months = [];
+  for (let i = 5; i >= 0; i--) months.push(shiftMonth(curMonth, -i + 0));
+  // 6ヶ月ウィンドウ: curMonth を右端に
+  const data = months.map(ym => ({ ym, ...metricsOf(ym) }));
+  const maxTotal = Math.max(...data.map(d => d.total), 1);
+  const el = document.getElementById('trend');
+  el.innerHTML = data.map(d => `
+    <div class="col ${d.ym === curMonth ? 'cur' : ''}" data-ym="${d.ym}">
+      <div class="bar" style="height:${Math.max(3, d.total/maxTotal*100)}%">
+        <span class="v num">${d.total ? man(d.total/10000) : ''}</span>
+      </div>
+      <div class="ml">${monthShort(d.ym)}</div>
+    </div>`).join('');
+
+  // 前月比サブ表示
+  const cur = data[data.length-1];
+  const prev = data[data.length-2];
+  const sub = document.getElementById('trendSub');
+  function diffCell(label, curV, prevV, unit, lowerBetter) {
+    if (!prevV && !curV) return `<div class="cell">${label}<b>—</b></div>`;
+    const d = curV - prevV;
+    const cls = d === 0 ? '' : ((d < 0) === lowerBetter ? 'up' : 'down');
+    const sign = d > 0 ? '+' : '';
+    return `<div class="cell">${label}<b class="${cls} num">${sign}${(Math.round(d*10)/10).toLocaleString('ja-JP')}${unit}</b></div>`;
+  }
+  sub.innerHTML =
+    diffCell('支出 前月比', Math.round(cur.total/1000)/10, Math.round(prev.total/1000)/10, '万', true) +
+    diffCell('エンゲル係数', cur.engel, prev.engel, 'pt', true) +
+    diffCell('貯蓄率', cur.saving, prev.saving, 'pt', false);
+}
+
+function renderAnalysis() {
+  const m = metricsOf(curMonth);
+  const avg = getAvg(profile);
+
+  setMetric('mEngel', pct(m.engel), 'mEngelNote',
+    m.engel === 0 ? ['データなし',''] :
+    m.engel < 18 ? ['全国平均 約19% より低め — 良好', 'good'] :
+    m.engel <= 22 ? ['全国平均（約19%）の標準圏内', ''] : ['平均より高め — 食費を見直す余地あり', 'warn']);
+
+  setMetric('mSaving', pct(m.saving), 'mSavingNote',
+    m.saving >= 20 ? ['目標 20% を達成', 'good'] :
+    m.saving >= 10 ? ['目標 20% まであと少し', 'warn'] : ['目標 20% を下回っています', 'bad']);
+
+  setMetric('mHousing', pct(m.housingRatio), 'mHousingNote',
+    m.housingRatio === 0 ? ['データなし',''] :
+    m.housingRatio <= 30 ? ['推奨 20-30% の範囲内', 'good'] : ['推奨上限 30% を超過', 'bad']);
+
+  setMetric('mInvest', pct(m.investRatio), 'mInvestNote',
+    m.investRatio >= avg.investment ? [`同条件平均 ${pct(avg.investment)} 以上`, 'good'] : [`同条件平均は ${pct(avg.investment)}`, '']);
+
+  const bar = document.getElementById('stackBar');
+  const leg = document.getElementById('stackLegend');
+  if (m.total === 0) { bar.innerHTML=''; leg.innerHTML='<span>データなし</span>'; }
+  else {
+    bar.innerHTML = CATS.filter(c=>m.byCat[c.id]>0).map(c =>
+      `<div style="flex:${m.byCat[c.id]}; background:${c.color}" title="${c.name}"></div>`).join('');
+    leg.innerHTML = CATS.filter(c=>m.byCat[c.id]>0).map(c =>
+      `<span><span class="sw" style="background:${c.color}"></span>${c.name} ${pct(m.byCat[c.id]/m.total*100)}</span>`).join('');
+  }
+  renderTips(m, avg);
+}
+function setMetric(valId, val, noteId, [note, cls]) {
+  document.getElementById(valId).textContent = val;
+  const n = document.getElementById(noteId);
+  n.textContent = note; n.className = 'note ' + (cls||'');
+}
+
+function renderTips(m, avg) {
+  const el = document.getElementById('tips');
+  const tips = [];
+  if (m.total === 0) { el.innerHTML = '<div class="tip">支出を記録すると、ここに自動でアドバイスが表示されます。</div>'; return; }
+  const th = m.takehomeYen;
+
+  const foodMine = m.byCat.food/th*100;
+  if (foodMine < avg.food - 2) tips.push(['g','食費管理が優秀', `対手取り比 ${pct(foodMine)} は同条件平均 ${pct(avg.food)} より低く、月あたり約 ${yen((avg.food-foodMine)/100*th)} の差を生んでいます。`]);
+  else if (foodMine > avg.food + 2) tips.push(['w','食費が平均より高め', `同条件平均 ${pct(avg.food)} に対して ${pct(foodMine)}。見直しで月 ${yen((foodMine-avg.food)/100*th)} 程度の削減余地があります。`]);
+
+  if (m.housingRatio > 30) tips.push(['r','家賃負担が推奨上限を超過', `手取りの ${pct(m.housingRatio)} を住居費が占めています（${PREFS[profile.pref][0]}の水準を加味した平均は ${pct(avg.housing)}）。推奨は 20-30% です。`]);
+
+  const eduMine = m.byCat.education/th*100;
+  if (profile.household.startsWith('family') || profile.household === 'single_parent') {
+    if (eduMine > avg.education + 3) tips.push(['w','教育費が同条件平均を大きく超過', `${HOUSEHOLD_LABEL[profile.household]}世帯の平均 ${pct(avg.education)} に対して ${pct(eduMine)}。教育費は聖域化しやすいため、費用対効果の確認を推奨します。`]);
+    else if (eduMine > 0) tips.push(['g','教育費は平均的な水準', `${HOUSEHOLD_LABEL[profile.household]}世帯の平均 ${pct(avg.education)} に対して ${pct(eduMine)} で、無理のない範囲です。`]);
+  }
+
+  if (m.investRatio >= avg.investment + 3) tips.push(['g','投資・貯蓄への配分が優秀', `同条件平均 ${pct(avg.investment)} を上回る ${pct(m.investRatio)} を将来に配分できています。`]);
+  else if (m.investRatio < avg.investment - 3 && m.saving > 15) tips.push(['w','余力を投資・貯蓄へ', `貯蓄率に余裕がある一方、明示的な投資・貯蓄は ${pct(m.investRatio)}（平均 ${pct(avg.investment)}）。先取り貯蓄の仕組み化を検討してください。`]);
+
+  if (m.saving < 10) tips.push(['r','貯蓄率の改善を最優先に', `現在 ${pct(m.saving)}。まず固定費（通信・保険・サブスク）から見直すのが定石です。`]);
+
+  if (!tips.length) tips.push(['g','バランスの取れた家計です', '大きな偏りは見られません。この配分を維持しつつ、月次推移で変化を確認しましょう。']);
+  el.innerHTML = tips.map(([c,t,b]) => `<div class="tip ${c}"><b>${t}</b>${b}</div>`).join('');
+}
+
+function renderComparison() {
+  const m = metricsOf(curMonth);
+  const avg = getAvg(profile);
+  document.getElementById('cmpCond').textContent =
+    `${AGE_LABEL[profile.age]} · ${PREFS[profile.pref][0]} · ${HOUSEHOLD_LABEL[profile.household]} · 年収${profile.income}万円`;
+
+  const el = document.getElementById('cmpBars');
+  if (m.total === 0) { el.innerHTML = '<div class="empty">記録タブで支出を入力すると比較が表示されます。</div>'; }
+  else {
+    const maxPct = Math.max(...CATS.map(c => Math.max(m.byCat[c.id]/m.takehomeYen*100, avg[c.id]))) * 1.15;
+    el.innerHTML = CATS.map(c => {
+      const mine = m.byCat[c.id]/m.takehomeYen*100;
+      const a = avg[c.id];
+      const isInvest = c.id === 'investment';
+      const better = isInvest ? mine >= a : mine <= a;
+      const verdict = m.byCat[c.id] === 0 ? '' :
+        `<span class="${better?'good':'warn'}">${better ? (isInvest?'平均以上':'平均以下 ✓') : '平均超過'}</span>`;
+      return `<div class="cmp">
+        <div class="head"><b>${c.name}</b>${verdict}</div>
+        <div class="bar-wrap"><span class="who">あなた</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,mine/maxPct*100)}%; background:${c.color}"></div></div>
+          <span class="pct num">${pct(mine)}</span></div>
+        <div class="bar-wrap"><span class="who">平均</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,a/maxPct*100)}%; background:#c9c4b6"></div></div>
+          <span class="pct num">${pct(a)}</span></div>
+      </div>`;
+    }).join('');
+  }
+
+  const hanko = document.getElementById('hanko');
+  const desc = document.getElementById('hankoDesc');
+  if (m.total === 0) {
+    hanko.innerHTML = '<div class="big">—</div><div class="sml">データ待ち</div>';
+    desc.textContent = '記録タブで支出を入力すると、総合ランクの判子が押されます。';
+    return;
+  }
+  const consumptionPct = m.consumption / m.takehomeYen * 100;
+  const avgConsumption = Object.entries(avg).filter(([k])=>k!=='investment').reduce((s,[,v])=>s+v,0);
+  const pSpend = percentileBelow(consumptionPct, avgConsumption);
+  const pInvest = 100 - percentileBelow(m.investRatio, avg.investment);
+  const rank = Math.round(Math.min(99, Math.max(1, (pSpend*0.6 + pInvest*0.4))));
+  // 上位rank% → 偏差値（50 + 10z）。二分探索で標準正規分布の逆関数を求める
+  const zFromP = p => {
+    let lo = -4, hi = 4;
+    for (let i = 0; i < 50; i++) {
+      const mid = (lo + hi) / 2;
+      (percentileBelow(mid, 0) / 100 < p) ? lo = mid : hi = mid;
+    }
+    return (lo + hi) / 2;
+  };
+  const hensachi = Math.round(Math.min(80, Math.max(20, 50 + 10 * zFromP(1 - rank / 100))));
+  const grade = rank <= 10 ? '特上' : rank <= 25 ? '優秀' : rank <= 50 ? '標準' : '要改善';
+  hanko.innerHTML = `<div class="sml">家計偏差値</div><div class="big num">${hensachi}</div><div class="sml">上位${rank}%・${grade}</div>`;
+  desc.innerHTML = `消費支出の抑制度と投資・貯蓄への配分から算出した、あなたの<b>家計偏差値は ${hensachi}</b>（同条件内で上位 ${rank}% 相当）です。比較条件: ${AGE_LABEL[profile.age]}・${PREFS[profile.pref][0]}・${HOUSEHOLD_LABEL[profile.household]}。`;
+}
+
+// ===== イベント =====
+document.getElementById('catChips').innerHTML =
+  CATS.map(c => `<button class="chip ${c.id===selectedCat?'on':''}" data-cat="${c.id}">${c.name}</button>`).join('');
+document.getElementById('catChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-cat]'); if (!b) return;
+  selectedCat = b.dataset.cat;
+  document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x.dataset.cat === selectedCat));
+});
+
+document.getElementById('addBtn').addEventListener('click', () => {
+  const amtEl = document.getElementById('amount');
+  const memoEl = document.getElementById('memo');
+  const note = document.getElementById('addNote');
+  const amt = parseInt(amtEl.value, 10);
+  if (!amt || amt < 1) { note.textContent = '1円以上の金額を入力してください'; note.style.color = 'var(--shu)'; return; }
+  if (amt > 999999) { note.textContent = '999,999円以下で入力してください'; note.style.color = 'var(--shu)'; return; }
+  const date = curMonth === thisMonth() ? todayStr() : `${curMonth}-15`;
+  expenses.push({ id: uid(), date, category: selectedCat, amount: amt, memo: memoEl.value.trim() });
+  amtEl.value = ''; memoEl.value = '';
+  note.textContent = `${monthJP(curMonth)}に ${catById(selectedCat).name} ${yen(amt)} を記録しました`;
+  note.style.color = 'var(--green)';
+  trySave(); renderAll();
+});
+document.getElementById('amount').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('addBtn').click(); });
+
+document.getElementById('ledger').addEventListener('click', e => {
+  const b = e.target.closest('[data-del]'); if (!b) return;
+  expenses = expenses.filter(x => x.id !== b.dataset.del);
+  trySave(); renderAll();
+});
+
+document.getElementById('trend').addEventListener('click', e => {
+  const col = e.target.closest('[data-ym]'); if (!col) return;
+  curMonth = col.dataset.ym;
+  renderAll();
+});
+
+document.getElementById('prevM').addEventListener('click', () => { curMonth = shiftMonth(curMonth, -1); renderAll(); });
+document.getElementById('nextM').addEventListener('click', () => {
+  if (curMonth < thisMonth()) { curMonth = shiftMonth(curMonth, 1); renderAll(); }
+});
+
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('main section').forEach(s => s.classList.toggle('on', s.id === b.dataset.tab));
+}));
+
+// 設定
+const prefSel = document.getElementById('pPref');
+prefSel.innerHTML = PREFS.map((p,i) => `<option value="${i}">${p[0]}</option>`).join('');
+function renderPrefInfo() {
+  const i = parseInt(prefSel.value, 10);
+  const [name, h, p] = PREFS[i];
+  document.getElementById('prefInfo').innerHTML =
+    `<b>${name}</b> の補正: 家賃水準 ${h}（全国=100）・物価地域差 ${p}（全国=100）。比較タブの平均値のうち「家賃・住宅」「食費」「その他」に反映されます。`;
+}
+prefSel.addEventListener('change', renderPrefInfo);
+
+document.getElementById('saveProfile').addEventListener('click', () => {
+  profile = {
+    age: document.getElementById('pAge').value,
+    pref: parseInt(prefSel.value, 10),
+    household: document.getElementById('pHousehold').value,
+    income: parseInt(document.getElementById('pIncome').value,10) || 500,
+    takehome: parseFloat(document.getElementById('pTakehome').value) || 32,
+  };
+  document.getElementById('setNote').textContent = 'プロフィールを保存しました（比較タブの平均値が切り替わります）';
+  trySave(); renderAll();
+});
+document.getElementById('loadSample').addEventListener('click', () => {
+  expenses = sampleData();
+  document.getElementById('setNote').textContent = 'サンプルデータ（直近4ヶ月分）を投入しました';
+  trySave(); renderAll();
+});
+document.getElementById('clearData').addEventListener('click', () => {
+  expenses = [];
+  document.getElementById('setNote').textContent = '明細を全削除しました';
+  trySave(); renderAll();
+});
+
+// ===== CSVインポート診断 =====
+function parseCSV(text) {
+  text = text.replace(/^\uFEFF/, '');
+  const rows = []; let row = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') { if (text[i+1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += ch;
+    } else {
+      if (ch === '"') inQ = true;
+      else if (ch === ',') { row.push(cur); cur = ''; }
+      else if (ch === '\n') { row.push(cur); cur = ''; if (row.some(c => c !== '')) rows.push(row); row = []; }
+      else if (ch === '\r') { /* skip */ }
+      else cur += ch;
+    }
+  }
+  if (cur !== '' || row.length) { row.push(cur); if (row.some(c => c !== '')) rows.push(row); }
+  return rows;
+}
+
+const CAT_MAP = [
+  ['food',       ['食費','食料','外食','カフェ','朝食','昼食','夕食','食事','飲食','ランチ','ディナー']],
+  ['housing',    ['住宅','家賃','住まい','ローン','住居','管理費','修繕']],
+  ['utilities',  ['水道','光熱','電気','ガス','通信','スマホ','携帯','インターネット','Wi-Fi','電話','電気代']],
+  ['transport',  ['交通','自動車','ガソリン','電車','バス','タクシー','駐車','高速','移動','ガソリン','車','Suica','ETC']],
+  ['education',  ['教育','教養','子育て','保育','学費','習い事','子ども','書籍','本','書店','セミナー','受講']],
+  ['insurance',  ['保険','医療','病院','薬','健康','歯科','年金','税金','住民税','所得税','社会保険','医療費']],
+  ['investment', ['投資','貯蓄','貯金','証券','積立','財形','NISA','iDeCo','資産運用','持株','拠出','株']],
+];
+// 「その他」に落ちるが日本の家計簿でよくある語（プレゼント/交際費/日用品/ファッション/娯楽等）は
+// 意図的にマッピングせず other に集約する（診断は8カテゴリ固定のため）
+function mapCategory(name) {
+  if (!name) return 'other';
+  for (const [id, kws] of CAT_MAP) if (kws.some(k => name.includes(k))) return id;
+  return 'other';
+}
+function parseCsvDate(s) {
+  if (!s) return null;
+  const t = String(s).trim();
+  // YYYYMMDD（区切りなし8桁）
+  const m8 = t.match(/^(\d{4})(\d{2})(\d{2})/);
+  if (m8) return `${m8[1]}-${m8[2]}-${m8[3]}`;
+  // YYYY/MM/DD, YYYY-MM-DD, YYYY年M月D日 など
+  const m = t.match(/(\d{4})[\/\-年.](\d{1,2})[\/\-月.](\d{1,2})/);
+  if (!m) return null;
+  return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+}
+const num = s => parseFloat(String(s||'').replace(/[",¥\\s]/g, ''));
+
+function detectAndExtract(rows) {
+  if (rows.length < 2) return { format: null, records: [], unmapped: {} };
+  const header = rows[0].map(h => h.trim());
+  const idx = name => header.findIndex(h => h.includes(name));
+  const records = [];
+  let format = null;
+  const unmapped = {}; // 「その他」に分類した元カテゴリ名 → 件数
+  const mapWithTrack = (name) => {
+    const id = mapCategory(name);
+    const label = String(name || '').replace(/\s+/g, ' ').trim();
+    if (id === 'other' && label) unmapped[label] = (unmapped[label] || 0) + 1;
+    return id;
+  };
+
+  if (idx('大項目') >= 0 && idx('金額') >= 0) {
+    format = 'マネーフォワード ME';
+    const iDate = idx('日付'), iAmt = idx('金額'), iCat = idx('大項目'),
+          iSub = idx('中項目'), iInc = idx('計算対象'), iMemo = idx('内容');
+    rows.slice(1).forEach(r => {
+      const amt = num(r[iAmt]);
+      const date = parseCsvDate(r[iDate]);
+      if (!date || isNaN(amt) || amt >= 0) return;          // 支出はマイナス表記
+      if (iInc >= 0 && String(r[iInc]).trim() === '0') return; // 計算対象外を除外
+      const catText = (r[iCat]||'') + ' ' + (iSub >= 0 ? (r[iSub]||'') : '');
+      records.push({ date, amount: Math.abs(Math.round(amt)), category: mapWithTrack(catText), memo: iMemo >= 0 ? (r[iMemo]||'') : '' });
+    });
+  } else if (idx('収支区分') >= 0 && idx('金額') >= 0 && idx('カテゴリ') >= 0) {
+    format = '毎日家計簿';
+    const iDate = idx('日付'), iAmt = idx('金額'), iCat = idx('カテゴリ'),
+          iBig = idx('大分類'), iKind = idx('収支区分'), iMemo = idx('メモ');
+    rows.slice(1).forEach(r => {
+      const kind = String(r[iKind]||'').trim();
+      if (kind !== '支') return;                            // 「支」（支出）のみ・収入は除外
+      const amt = Math.abs(num(r[iAmt]));
+      const date = parseCsvDate(r[iDate]);
+      if (!date || isNaN(amt) || amt === 0) return;
+      const catText = (r[iCat]||'') + ' ' + (iBig >= 0 ? (r[iBig]||'') : '');
+      records.push({ date, amount: Math.round(amt), category: mapWithTrack(catText), memo: iMemo >= 0 ? (r[iMemo]||'') : '' });
+    });
+  } else if (idx('支出') >= 0 && idx('カテゴリ') >= 0) {
+    format = 'Zaim';
+    const iDate = idx('日付'), iOut = idx('支出'), iCat = idx('カテゴリ'),
+          iSub = idx('カテゴリの内訳'), iItem = idx('品目');
+    rows.slice(1).forEach(r => {
+      const amt = num(r[iOut]);
+      const date = parseCsvDate(r[iDate]);
+      if (!date || isNaN(amt) || amt <= 0) return;          // 支出列が正の行のみ
+      const catText = (r[iCat]||'') + ' ' + (iSub >= 0 ? (r[iSub]||'') : '');
+      records.push({ date, amount: Math.round(amt), category: mapWithTrack(catText), memo: iItem >= 0 ? (r[iItem]||'') : '' });
+    });
+  } else {
+    format = '汎用CSV';
+    const iDate = header.findIndex(h => /日付|date/i.test(h));
+    const iAmt  = header.findIndex(h => /金額|支出|amount/i.test(h));
+    const iCat  = header.findIndex(h => /カテゴリ|項目|category/i.test(h));
+    if (iDate < 0 || iAmt < 0) return { format: null, records: [], unmapped: {} };
+    rows.slice(1).forEach(r => {
+      const amt = Math.abs(num(r[iAmt]));
+      const date = parseCsvDate(r[iDate]);
+      if (!date || isNaN(amt) || amt === 0) return;
+      records.push({ date, amount: Math.round(amt), category: iCat >= 0 ? mapWithTrack(r[iCat]||'') : 'other', memo: '' });
+    });
+  }
+  return { format, records, unmapped };
+}
+
+let pendingImport = null; // { format, byMonthCat: {ym: {cat: {sum, n}}}, months, count }
+
+function buildImportPreview(format, records, unmapped) {
+  const byMonthCat = {};
+  records.forEach(rec => {
+    const ym = rec.date.slice(0, 7);
+    byMonthCat[ym] = byMonthCat[ym] || {};
+    byMonthCat[ym][rec.category] = byMonthCat[ym][rec.category] || { sum: 0, n: 0 };
+    byMonthCat[ym][rec.category].sum += rec.amount;
+    byMonthCat[ym][rec.category].n += 1;
+  });
+  const months = Object.keys(byMonthCat).sort();
+  return { format, byMonthCat, months, count: records.length, unmapped: unmapped || {} };
+}
+
+function renderImportPreview() {
+  const el = document.getElementById('importPreview');
+  if (!pendingImport) { el.innerHTML = ''; return; }
+  const { format, byMonthCat, months, count } = pendingImport;
+  const total = months.reduce((s, ym) =>
+    s + Object.values(byMonthCat[ym]).reduce((a, v) => a + v.sum, 0), 0);
+  const rowsHtml = months.map(ym => {
+    const cats = byMonthCat[ym];
+    const mTotal = Object.values(cats).reduce((a, v) => a + v.sum, 0);
+    const top = Object.entries(cats).sort((a,b) => b[1].sum - a[1].sum).slice(0, 3)
+      .map(([c, v]) => `${catById(c).name} ${man(v.sum/10000)}`).join(' / ');
+    return `<tr><td class="num">${monthJP(ym)}</td><td>${top}</td><td class="num">${yen(mTotal)}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<div class="imp-box">
+    <div class="imp-meta">形式: <b>${format}</b> ・ 支出 <b class="num">${count.toLocaleString('ja-JP')}</b> 件 ・
+      ${months.length} ヶ月分 ・ 合計 <b class="num">${yen(total)}</b></div>
+    <table class="imp-table">
+      <tr><th>月</th><th>主な内訳（上位3カテゴリ）</th><th>支出合計</th></tr>
+      ${rowsHtml}
+    </table>
+    <label class="imp-opts"><input type="checkbox" id="impReplace" checked>
+      取り込む月の既存明細を置き換える（重複防止・推奨）</label>
+    <button class="btn" id="impRun">取り込んで診断する</button>
+  </div>`;
+  document.getElementById('impRun').addEventListener('click', runImport);
+}
+
+function runImport() {
+  if (!pendingImport) return;
+  const { format, byMonthCat, months } = pendingImport;
+  const replace = document.getElementById('impReplace').checked;
+  if (replace) {
+    const target = new Set(months);
+    expenses = expenses.filter(e => !target.has(e.date.slice(0, 7)));
+  }
+  // 月×カテゴリの集計レコードとして取込（診断に必要な粒度）
+  months.forEach(ym => {
+    Object.entries(byMonthCat[ym]).forEach(([cat, v]) => {
+      expenses.push({
+        id: uid(), date: `${ym}-15`, category: cat, amount: v.sum,
+        memo: `${format}から取込（${v.n}件の集計）`,
+      });
+    });
+  });
+  curMonth = months[months.length - 1];
+  pendingImport = null;
+  document.getElementById('importPreview').innerHTML = '';
+  document.getElementById('csvFile').value = '';
+  trySave();
+  // 診断結果（比較タブ）へ直行
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x.dataset.tab === 'cmp'));
+  document.querySelectorAll('main section').forEach(s => s.classList.toggle('on', s.id === 'cmp'));
+  renderAll();
+}
+
+document.getElementById('csvFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  const el = document.getElementById('importPreview');
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const rows = parseCSV(reader.result);
+      const { format, records } = detectAndExtract(rows);
+      if (!format || !records.length) {
+        pendingImport = null;
+        el.innerHTML = '<div class="imp-err">CSVを解析できませんでした。ヘッダー行に「日付」「金額（または支出）」列が含まれるファイルをご利用ください。</div>';
+        return;
+      }
+      pendingImport = buildImportPreview(format, records);
+      renderImportPreview();
+    } catch (err) {
+      pendingImport = null;
+      el.innerHTML = '<div class="imp-err">読み込み中にエラーが発生しました。ファイル形式をご確認ください。</div>';
+    }
+  };
+  reader.readAsText(file);
+});
+
+// ===== 初期化 =====
+(async function init() {
+  const loaded = await tryLoad();
+  if (!loaded) expenses = sampleData();
+  document.getElementById('pAge').value = profile.age;
+  prefSel.value = String(profile.pref);
+  document.getElementById('pHousehold').value = profile.household;
+  document.getElementById('pIncome').value = profile.income;
+  document.getElementById('pTakehome').value = profile.takehome;
+  renderPrefInfo();
+  renderAll();
+})();
+</script>
+</body>
+</html>
